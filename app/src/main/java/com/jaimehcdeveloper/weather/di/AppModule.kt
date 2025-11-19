@@ -1,7 +1,8 @@
 package com.jaimehcdeveloper.weather.di
+
+import com.jaime.weatherapp.data.repository.WeatherRepositoryImpl
 import com.jaimehcdeveloper.weather.data.remote.WeatherApiService
 import com.jaimehcdeveloper.weather.data.repository.WeatherRepository
-import com.jaimehcdeveloper.weather.data.repository.WeatherRepositoryImpl
 import com.squareup.moshi.Moshi
 import com.squareup.moshi.kotlin.reflect.KotlinJsonAdapterFactory
 import dagger.Binds

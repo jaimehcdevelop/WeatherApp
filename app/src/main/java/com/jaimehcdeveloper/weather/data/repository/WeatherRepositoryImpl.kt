@@ -1,16 +1,20 @@
-package com.jaimehcdeveloper.weather.data.repository
+package com.jaime.weatherapp.data.repository
+
 
 import android.content.Context
 import android.location.Geocoder
-import android.os.Build
 import com.jaimehcdeveloper.weather.data.remote.WeatherApiService
 import com.jaimehcdeveloper.weather.data.remote.dto.WeatherApiResponse
 import com.jaimehcdeveloper.weather.data.repository.WeatherRepository
+import com.jaimehcdeveloper.weather.domain.model.DailyWeatherInfo
 import com.jaimehcdeveloper.weather.domain.model.HourlyWeatherInfo
+import com.jaimehcdeveloper.weather.domain.model.LocationSearchResult
 import com.jaimehcdeveloper.weather.domain.model.WeatherInfo
+
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
+import java.time.LocalDate
 import java.time.LocalDateTime
 import java.time.format.DateTimeFormatter
 import java.util.Locale
@@ -19,21 +23,15 @@ import kotlin.math.roundToInt
 
 class WeatherRepositoryImpl @Inject constructor(
     private val apiService: WeatherApiService,
-    // Inyectamos el contexto de la aplicación para usar el Geocoder
     @ApplicationContext private val context: Context
 ) : WeatherRepository {
 
+    // --- Implementación existente getWeather ... ---
     override suspend fun getWeather(lat: Double, lon: Double): Result<WeatherInfo> {
         return withContext(Dispatchers.IO) {
             try {
-                // 1. Llamada a la API del clima
                 val response = apiService.getWeatherByLocation(lat = lat, lon = lon)
-
-                // 2. Llamada al Geocoder para obtener el nombre de la ciudad
-                // (Esto convierte coordenadas -> "Madrid, España")
                 val locationNames = getLocationName(lat, lon)
-
-                // 3. Unimos todo
                 Result.success(response.toDomain(locationNames.first, locationNames.second))
             } catch (e: Exception) {
                 e.printStackTrace()
@@ -42,17 +40,38 @@ class WeatherRepositoryImpl @Inject constructor(
         }
     }
 
-    // --- NUEVA FUNCIÓN: Geocoding Inverso ---
-    @Suppress("DEPRECATION") // Usamos la versión sincrónica porque ya estamos en Dispatchers.IO
+    // --- NUEVA Implementación searchCity ---
+    override suspend fun searchCity(query: String): Result<List<LocationSearchResult>> {
+        return withContext(Dispatchers.IO) {
+            try {
+                val response = apiService.searchCity(query = query)
+                val results = response.results?.map { dto ->
+                    LocationSearchResult(
+                        name = dto.name,
+                        latitude = dto.latitude,
+                        longitude = dto.longitude,
+                        country = dto.country ?: "",
+                        region = dto.admin1 ?: ""
+                    )
+                } ?: emptyList()
+
+                Result.success(results)
+            } catch (e: Exception) {
+                e.printStackTrace()
+                Result.failure(e)
+            }
+        }
+    }
+
+
+    // ... (Resto de funciones privadas getLocationName, toDomain, etc. permanecen IGUALES) ...
+    @Suppress("DEPRECATION")
     private fun getLocationName(lat: Double, lon: Double): Pair<String, String> {
         return try {
             val geocoder = Geocoder(context, Locale.getDefault())
-            // Obtenemos 1 resultado máximo
             val addresses = geocoder.getFromLocation(lat, lon, 1)
-
             if (!addresses.isNullOrEmpty()) {
                 val address = addresses[0]
-                // Priorizamos "Locality" (Ciudad), si es null usamos "SubAdminArea" o "AdminArea"
                 val city = address.locality ?: address.subAdminArea ?: address.adminArea ?: "Ubicación"
                 val country = address.countryName ?: ""
                 Pair(city, country)
@@ -60,7 +79,6 @@ class WeatherRepositoryImpl @Inject constructor(
                 Pair("Ubicación desconocida", "Lat: $lat")
             }
         } catch (e: Exception) {
-            // Si falla el Geocoder (ej: sin internet o servicio no disponible), mostramos coordenadas
             e.printStackTrace()
             Pair("Coordenadas", "$lat, $lon")
         }
@@ -70,7 +88,6 @@ class WeatherRepositoryImpl @Inject constructor(
         val currentCode = this.currentWeather.weatherCode
         val currentWeatherType = parseWeatherCode(currentCode)
 
-        // Lógica para procesar el horario (Igual que antes)
         val currentHourIndex = getCurrentHourIndex(this.hourly.time)
         val next24Hours = if (currentHourIndex != -1) {
             val endIndex = minOf(currentHourIndex + 24, this.hourly.time.size)
@@ -78,33 +95,46 @@ class WeatherRepositoryImpl @Inject constructor(
                 val timeStr = this.hourly.time[index]
                 val temp = this.hourly.temperatures[index]
                 val code = this.hourly.weatherCodes[index]
-
-                HourlyWeatherInfo(
+                val hourlyWeatherInfo: HourlyWeatherInfo = HourlyWeatherInfo(
                     time = parseTime(timeStr),
                     temperature = temp.roundToInt(),
                     iconUrl = parseWeatherCode(code).iconUrl
                 )
+                hourlyWeatherInfo
             }
         } else {
             emptyList()
+        }
+
+        val dailyList = this.daily.time.indices.map { index ->
+            val dateStr = this.daily.time[index]
+            val maxTemp = this.daily.maxTemperatures[index]
+            val minTemp = this.daily.minTemperatures[index]
+            val code = this.daily.weatherCodes[index]
+
+            DailyWeatherInfo(
+                time = parseDateToDay(dateStr),
+                maxTemperature = maxTemp.roundToInt(),
+                minTemperature = minTemp.roundToInt(),
+                iconUrl = parseWeatherCode(code).iconUrl
+            )
         }
 
         val currentHumidity = this.hourly.humidities.getOrNull(currentHourIndex) ?: 0
         val currentPressure = this.hourly.pressures.getOrNull(currentHourIndex)?.roundToInt() ?: 1013
 
         return WeatherInfo(
-            locationName = cityName, // ¡Ahora usamos el nombre real!
+            locationName = cityName,
             temperature = this.currentWeather.temperature.roundToInt(),
             description = currentWeatherType.description,
             iconUrl = currentWeatherType.iconUrl,
             humidity = currentHumidity,
             pressure = currentPressure,
             windSpeed = this.currentWeather.windSpeed,
-            hourlyForecast = next24Hours
+            hourlyForecast = next24Hours,
+            dailyForecast = dailyList
         )
     }
-
-    // ... Resto de funciones auxiliares (getCurrentHourIndex, parseTime, parseWeatherCode) igual que antes ...
 
     private fun getCurrentHourIndex(times: List<String>): Int {
         val now = LocalDateTime.now()
@@ -120,6 +150,21 @@ class WeatherRepositoryImpl @Inject constructor(
             date.format(DateTimeFormatter.ofPattern("HH:mm"))
         } catch (e: Exception) {
             isoString
+        }
+    }
+
+    private fun parseDateToDay(isoDate: String): String {
+        return try {
+            val date = LocalDate.parse(isoDate)
+            val today = LocalDate.now()
+            when (date) {
+                today -> "Hoy"
+                today.plusDays(1) -> "Mañana"
+                else -> date.format(DateTimeFormatter.ofPattern("EEEE", Locale("es", "ES")))
+                    .replaceFirstChar { it.uppercase() }
+            }
+        } catch (e: Exception) {
+            isoDate
         }
     }
 
