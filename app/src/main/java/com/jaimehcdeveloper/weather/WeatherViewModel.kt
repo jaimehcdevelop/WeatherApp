@@ -20,13 +20,8 @@ class WeatherViewModel @Inject constructor(
     private val _uiState = MutableStateFlow(WeatherUiState())
     val uiState: StateFlow<WeatherUiState> = _uiState.asStateFlow()
 
-    init {
-        // Cargar Madrid por defecto al iniciar la app
-        loadWeatherInfo()
-    }
 
-    // Por defecto usamos coordenadas de Madrid, pero se pueden pasar otras
-    fun loadWeatherInfo(lat: Double = 40.4165, lon: Double = -3.70256) {
+    fun loadWeatherInfo(lat: Double, lon: Double) {
         viewModelScope.launch {
             _uiState.update { it.copy(isLoading = true, errorMessage = null) }
 

@@ -1,13 +1,20 @@
 package com.jaimehcdeveloper.weather.domain.model
 
 
-// Modelo puro de Kotlin, sin dependencias de Android o librerías de JSON
 data class WeatherInfo(
     val locationName: String,
-    val country: String,
-    val temperature: Int, // Redondeamos para la UI
+    val temperature: Int,
     val description: String,
     val iconUrl: String,
     val humidity: Int,
-    val pressure: Int
+    val pressure: Int,
+    val windSpeed: Double,
+    // NUEVO: Lista de pronóstico para las próximas horas
+    val hourlyForecast: List<HourlyWeatherInfo>
+)
+
+data class HourlyWeatherInfo(
+    val time: String, // Ej: "14:00"
+    val temperature: Int,
+    val iconUrl: String
 )

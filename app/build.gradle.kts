@@ -76,6 +76,9 @@ dependencies {
     // --- Coil (Carga de imágenes) ---
     implementation("io.coil-kt:coil-compose:2.7.0")
 
+    //Localizacion
+    implementation("com.google.android.gms:play-services-location:21.2.0")
+
     // --- ViewModel & Navigation ---
     implementation("androidx.lifecycle:lifecycle-viewmodel-compose:2.8.3")
     implementation("androidx.hilt:hilt-navigation-compose:1.2.0")
