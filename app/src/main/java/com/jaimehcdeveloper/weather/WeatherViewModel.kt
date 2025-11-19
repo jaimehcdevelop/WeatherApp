@@ -1,5 +1,4 @@
-package com.jaimehcdeveloper.weather
-
+package com.example.weatherapp.ui.weather
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
@@ -22,20 +21,29 @@ class WeatherViewModel @Inject constructor(
     val uiState: StateFlow<WeatherUiState> = _uiState.asStateFlow()
 
     init {
-        // Cargamos los datos automáticamente al iniciar
-        loadMockData()
+        // Cargar Madrid por defecto al iniciar la app
+        loadWeatherInfo()
     }
 
-    fun loadMockData() {
+    // Por defecto usamos coordenadas de Madrid, pero se pueden pasar otras
+    fun loadWeatherInfo(lat: Double = 40.4165, lon: Double = -3.70256) {
         viewModelScope.launch {
-            _uiState.update { it.copy(isLoading = true) }
+            _uiState.update { it.copy(isLoading = true, errorMessage = null) }
 
-            repository.getWeather(0.0, 0.0)
-                .onSuccess { info ->
-                    _uiState.update { it.copy(isLoading = false, data = info) }
+            repository.getWeather(lat, lon)
+                .onSuccess { weatherInfo ->
+                    _uiState.update {
+                        it.copy(isLoading = false, data = weatherInfo, errorMessage = null)
+                    }
                 }
-                .onFailure {
-                    _uiState.update { it.copy(isLoading = false, errorMessage = "Error en Mock") }
+                .onFailure { error ->
+                    _uiState.update {
+                        it.copy(
+                            isLoading = false,
+                            data = null,
+                            errorMessage = error.message ?: "Error desconocido de red"
+                        )
+                    }
                 }
         }
     }

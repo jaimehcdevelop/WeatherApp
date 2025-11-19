@@ -1,6 +1,4 @@
 package com.jaimehcdeveloper.weather.di
-
-
 import com.jaimehcdeveloper.weather.data.remote.WeatherApiService
 import com.jaimehcdeveloper.weather.data.repository.WeatherRepository
 import com.jaimehcdeveloper.weather.data.repository.WeatherRepositoryImpl
@@ -22,7 +20,8 @@ import javax.inject.Singleton
 @InstallIn(SingletonComponent::class)
 object AppModule {
 
-    private const val BASE_URL = "https://api.openweathermap.org/data/2.5/"
+    // CAMBIO 1: Nueva URL Base de Open-Meteo
+    private const val BASE_URL = "https://api.open-meteo.com/"
 
     @Provides
     @Singleton
@@ -35,11 +34,10 @@ object AppModule {
     fun provideOkHttpClient(): OkHttpClient {
         return OkHttpClient.Builder()
             .addInterceptor(HttpLoggingInterceptor().apply {
-                // BODY solo en debug para no saturar logs en release
                 level = HttpLoggingInterceptor.Level.BODY
             })
-            .connectTimeout(30, TimeUnit.SECONDS) // Timeout de conexión
-            .readTimeout(30, TimeUnit.SECONDS)    // Timeout de lectura
+            .connectTimeout(30, TimeUnit.SECONDS)
+            .readTimeout(30, TimeUnit.SECONDS)
             .build()
     }
 

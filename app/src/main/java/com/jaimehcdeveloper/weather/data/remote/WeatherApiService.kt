@@ -1,18 +1,17 @@
 package com.jaimehcdeveloper.weather.data.remote
 
-
 import com.jaimehcdeveloper.weather.data.remote.dto.WeatherApiResponse
 import retrofit2.http.GET
 import retrofit2.http.Query
 
 interface WeatherApiService {
 
-    @GET("weather")
+    // CAMBIO 2: Endpoint de Open-Meteo
+    // Docs: https://open-meteo.com/en/docs
+    @GET("v1/forecast")
     suspend fun getWeatherByLocation(
-        @Query("lat") lat: Double,
-        @Query("lon") lon: Double,
-        @Query("appid") apiKey: String,
-        @Query("units") units: String = "metric",
-        @Query("lang") lang: String = "es"
+        @Query("latitude") lat: Double,
+        @Query("longitude") lon: Double,
+        @Query("current_weather") currentWeather: Boolean = true
     ): WeatherApiResponse
 }
